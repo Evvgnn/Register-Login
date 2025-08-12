@@ -10,7 +10,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
-import androidx.core.widget.addTextChangedListener
 import com.example.registerlogin.NavigationInterface
 import com.example.registerlogin.R
 import com.google.android.material.textfield.TextInputEditText
@@ -55,14 +54,69 @@ class ResetPasswordFragment : Fragment() {
         initViews(view)
         setupClickListeners()
 
-        emailEditText.addTextChangedListener {
-            emailInputLayout.error = null
+        emailEditText.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) validateEmail()
         }
-        passwordEditText.addTextChangedListener {
-            passwordInputLayout.error = null
+        passwordEditText.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) validatePassword()
         }
-        confirmPasswordEditText.addTextChangedListener {
-            confirmPasswordInputLayout.error = null
+        confirmPasswordEditText.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) validateConfirmPassword()
+        }
+    }
+
+    private fun validateEmail(): Boolean {
+        val email = emailEditText.text.toString().trim()
+        return when {
+            email.isEmpty() -> {
+                setError(emailInputLayout, "Email is required")
+                false
+            }
+            !isValidEmail(email) -> {
+                setError(emailInputLayout, "Invalid email format")
+                false
+            }
+            else -> {
+                emailInputLayout.error = null
+                true
+            }
+        }
+    }
+
+    private fun validatePassword(): Boolean {
+        val password = passwordEditText.text.toString()
+        return when {
+            password.isEmpty() -> {
+                setError(passwordInputLayout, "Password is required")
+                false
+            }
+            password.length < 6 -> {
+                setError(passwordInputLayout, "Password must be at least 6 characters")
+                false
+            }
+            else -> {
+                passwordInputLayout.error = null
+                true
+            }
+        }
+    }
+
+    private fun validateConfirmPassword(): Boolean {
+        val password = passwordEditText.text.toString()
+        val confirmPassword = confirmPasswordEditText.text.toString()
+        return when {
+            confirmPassword.isEmpty() -> {
+                setError(confirmPasswordInputLayout, "Please confirm your password")
+                false
+            }
+            password != confirmPassword -> {
+                setError(confirmPasswordInputLayout, "Passwords do not match")
+                false
+            }
+            else -> {
+                confirmPasswordInputLayout.error = null
+                true
+            }
         }
     }
 
@@ -81,7 +135,8 @@ class ResetPasswordFragment : Fragment() {
 
     private fun setupClickListeners() {
         resetButton.setOnClickListener {
-            if (validateData()) {
+            val valid = validateEmail() && validatePassword() && validateConfirmPassword()
+            if (valid) {
                 performReset()
             }
         }
@@ -89,41 +144,6 @@ class ResetPasswordFragment : Fragment() {
         signUpTextView.setOnClickListener {
             navigationInterface.navigateToRegister()
         }
-    }
-
-    private fun validateData(): Boolean {
-        clearErrors()
-        var isValid = true
-
-        val email = emailEditText.text.toString().trim()
-        val password = passwordEditText.text.toString()
-        val confirmPassword = confirmPasswordEditText.text.toString()
-
-        if (email.isEmpty()) {
-            setError(emailInputLayout, "Email is required")
-            isValid = false
-        } else if (!isValidEmail(email)) {
-            setError(emailInputLayout, "Invalid email format")
-            isValid = false
-        }
-
-        if (password.isEmpty()) {
-            setError(passwordInputLayout, "Password is required")
-            isValid = false
-        } else if (password.length < 6) {
-            setError(passwordInputLayout, "Password must be at least 6 characters")
-            isValid = false
-        }
-
-        if (confirmPassword.isEmpty()) {
-            setError(confirmPasswordInputLayout, "Please confirm your password")
-            isValid = false
-        } else if (password != confirmPassword) {
-            setError(confirmPasswordInputLayout, "Passwords do not match")
-            isValid = false
-        }
-
-        return isValid
     }
 
     private fun performReset() {
@@ -146,11 +166,5 @@ class ResetPasswordFragment : Fragment() {
     private fun setError(inputLayout: TextInputLayout, message: String) {
         inputLayout.error = message
         inputLayout.setErrorTextColor(ContextCompat.getColorStateList(requireContext(), R.color.error_color))
-    }
-
-    private fun clearErrors() {
-        emailInputLayout.error = null
-        passwordInputLayout.error = null
-        confirmPasswordInputLayout.error = null
     }
 }

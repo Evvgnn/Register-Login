@@ -9,7 +9,6 @@ import android.widget.Button
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
-import androidx.core.widget.addTextChangedListener
 import com.example.registerlogin.NavigationInterface
 import com.example.registerlogin.R
 import com.google.android.material.textfield.TextInputEditText
@@ -54,20 +53,8 @@ class RegisterFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         initViews(view)
+        setupValidationOnFocusLost()
         setupClickListeners()
-
-        nameEditText.addTextChangedListener {
-            nameInputLayout.error = null
-        }
-        emailEditText.addTextChangedListener {
-            emailInputLayout.error = null
-        }
-        passwordEditText.addTextChangedListener {
-            passwordInputLayout.error = null
-        }
-        confirmPasswordEditText.addTextChangedListener {
-            confirmPasswordInputLayout.error = null
-        }
     }
 
     private fun initViews(view: View) {
@@ -85,9 +72,29 @@ class RegisterFragment : Fragment() {
         signInTextView = view.findViewById(R.id.signInTextView)
     }
 
+    private fun setupValidationOnFocusLost() {
+        nameEditText.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) validateName()
+        }
+        emailEditText.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) validateEmail()
+        }
+        passwordEditText.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) validatePassword()
+        }
+        confirmPasswordEditText.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) validateConfirmPassword()
+        }
+    }
+
     private fun setupClickListeners() {
         signUpButton.setOnClickListener {
-            if (validateData()) {
+            val isNameValid = validateName()
+            val isEmailValid = validateEmail()
+            val isPasswordValid = validatePassword()
+            val isConfirmPasswordValid = validateConfirmPassword()
+
+            if (isNameValid && isEmailValid && isPasswordValid && isConfirmPasswordValid) {
                 val email = emailEditText.text.toString()
                 navigationInterface.navigateToLogin(email)
             }
@@ -98,48 +105,77 @@ class RegisterFragment : Fragment() {
         }
     }
 
-    private fun validateData(): Boolean {
-        clearErrors()
-        var isValid = true
-
+    private fun validateName(): Boolean {
         val name = nameEditText.text.toString().trim()
+        return when {
+            name.isEmpty() -> {
+                setError(nameInputLayout, "Name is required")
+                false
+            }
+            name.length < 2 -> {
+                setError(nameInputLayout, "Name must be at least 2 characters")
+                false
+            }
+            else -> {
+                nameInputLayout.error = null
+                true
+            }
+        }
+    }
+
+    private fun validateEmail(): Boolean {
         val email = emailEditText.text.toString().trim()
+        return when {
+            email.isEmpty() -> {
+                setError(emailInputLayout, "Email is required")
+                false
+            }
+            !isValidEmail(email) -> {
+                setError(emailInputLayout, "Invalid email format")
+                false
+            }
+            else -> {
+                emailInputLayout.error = null
+                true
+            }
+        }
+    }
+
+    private fun validatePassword(): Boolean {
+        val password = passwordEditText.text.toString()
+        return when {
+            password.isEmpty() -> {
+                setError(passwordInputLayout, "Password is required")
+                false
+            }
+            password.length < 6 -> {
+                setError(passwordInputLayout, "Password must be at least 6 characters")
+                false
+            }
+            else -> {
+                passwordInputLayout.error = null
+                true
+            }
+        }
+    }
+
+    private fun validateConfirmPassword(): Boolean {
         val password = passwordEditText.text.toString()
         val confirmPassword = confirmPasswordEditText.text.toString()
-
-        if (name.isEmpty()) {
-            setError(nameInputLayout, "Name is required")
-            isValid = false
-        } else if (name.length < 2) {
-            setError(nameInputLayout, "Name must be at least 2 characters")
-            isValid = false
+        return when {
+            confirmPassword.isEmpty() -> {
+                setError(confirmPasswordInputLayout, "Please confirm your password")
+                false
+            }
+            confirmPassword != password -> {
+                setError(confirmPasswordInputLayout, "Passwords do not match")
+                false
+            }
+            else -> {
+                confirmPasswordInputLayout.error = null
+                true
+            }
         }
-
-        if (email.isEmpty()) {
-            setError(emailInputLayout, "Email is required")
-            isValid = false
-        } else if (!isValidEmail(email)) {
-            setError(emailInputLayout, "Invalid email format")
-            isValid = false
-        }
-
-        if (password.isEmpty()) {
-            setError(passwordInputLayout, "Password is required")
-            isValid = false
-        } else if (password.length < 6) {
-            setError(passwordInputLayout, "Password must be at least 6 characters")
-            isValid = false
-        }
-
-        if (confirmPassword.isEmpty()) {
-            setError(confirmPasswordInputLayout, "Please confirm your password")
-            isValid = false
-        } else if (password != confirmPassword) {
-            setError(confirmPasswordInputLayout, "Passwords do not match")
-            isValid = false
-        }
-
-        return isValid
     }
 
     private fun isValidEmail(email: String): Boolean {
@@ -149,13 +185,8 @@ class RegisterFragment : Fragment() {
 
     private fun setError(inputLayout: TextInputLayout, message: String) {
         inputLayout.error = message
-        inputLayout.setErrorTextColor(ContextCompat.getColorStateList(requireContext(), R.color.error_color))
-    }
-
-    private fun clearErrors() {
-        nameInputLayout.error = null
-        emailInputLayout.error = null
-        passwordInputLayout.error = null
-        confirmPasswordInputLayout.error = null
+        inputLayout.setErrorTextColor(
+            ContextCompat.getColorStateList(requireContext(), R.color.error_color)
+        )
     }
 }
