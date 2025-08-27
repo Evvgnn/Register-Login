@@ -1,6 +1,8 @@
 package com.example.registerlogin.fragments
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -10,10 +12,12 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import com.example.registerlogin.NavigationInterface
 import com.example.registerlogin.R
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
+import kotlinx.coroutines.launch
 import java.util.regex.Pattern
 
 class ResetPasswordFragment : Fragment() {
@@ -65,6 +69,57 @@ class ResetPasswordFragment : Fragment() {
         }
     }
 
+    private fun initViews(view: View) {
+        emailInputLayout = view.findViewById(R.id.emailInputLayout)
+        passwordInputLayout = view.findViewById(R.id.passwordInputLayout)
+        confirmPasswordInputLayout = view.findViewById(R.id.confirmPasswordInputLayout)
+
+        emailEditText = view.findViewById(R.id.emailEditText)
+        passwordEditText = view.findViewById(R.id.passwordEditText)
+        confirmPasswordEditText = view.findViewById(R.id.confirmPasswordEditText)
+
+        resetButton = view.findViewById(R.id.resetButton)
+        signUpTextView = view.findViewById(R.id.signUpTextView)
+    }
+
+    private fun setupClickListeners() {
+        resetButton.setOnClickListener {
+            val emailOk = validateEmail()
+            val passOk = validatePassword()
+            val confirmOk = validateConfirmPassword()
+            if (!emailOk || !passOk || !confirmOk) {
+                return@setOnClickListener
+            }
+
+            if (!isNetworkAvailable()) {
+                Toast.makeText(
+                    requireContext(),
+                    "No internet connection. Please check your network connection and try again.",
+                    Toast.LENGTH_LONG
+                ).show()
+                return@setOnClickListener
+            }
+
+            performReset()
+        }
+
+        signUpTextView.setOnClickListener {
+            navigationInterface.navigateToRegister()
+        }
+    }
+
+    private fun performReset() {
+        val email = emailEditText.text.toString().trim()
+
+        Toast.makeText(
+            requireContext(),
+            "Password reset email sent to $email\nPlease check your inbox.",
+            Toast.LENGTH_LONG
+        ).show()
+
+        navigationInterface.navigateToLogin(email)
+    }
+
     private fun validateEmail(): Boolean {
         val email = emailEditText.text.toString().trim()
         return when {
@@ -109,7 +164,7 @@ class ResetPasswordFragment : Fragment() {
                 setError(confirmPasswordInputLayout, "Please confirm your password")
                 false
             }
-            password != confirmPassword -> {
+            confirmPassword != password -> {
                 setError(confirmPasswordInputLayout, "Passwords do not match")
                 false
             }
@@ -120,44 +175,6 @@ class ResetPasswordFragment : Fragment() {
         }
     }
 
-    private fun initViews(view: View) {
-        emailInputLayout = view.findViewById(R.id.emailInputLayout)
-        passwordInputLayout = view.findViewById(R.id.passwordInputLayout)
-        confirmPasswordInputLayout = view.findViewById(R.id.confirmPasswordInputLayout)
-
-        emailEditText = view.findViewById(R.id.emailEditText)
-        passwordEditText = view.findViewById(R.id.passwordEditText)
-        confirmPasswordEditText = view.findViewById(R.id.confirmPasswordEditText)
-
-        resetButton = view.findViewById(R.id.resetButton)
-        signUpTextView = view.findViewById(R.id.signUpTextView)
-    }
-
-    private fun setupClickListeners() {
-        resetButton.setOnClickListener {
-            val valid = validateEmail() && validatePassword() && validateConfirmPassword()
-            if (valid) {
-                performReset()
-            }
-        }
-
-        signUpTextView.setOnClickListener {
-            navigationInterface.navigateToRegister()
-        }
-    }
-
-    private fun performReset() {
-        val email = emailEditText.text.toString().trim()
-
-        Toast.makeText(
-            requireContext(),
-            "Password reset email sent to $email\nPlease check your inbox.",
-            Toast.LENGTH_LONG
-        ).show()
-
-        navigationInterface.navigateToLogin(email)
-    }
-
     private fun isValidEmail(email: String): Boolean {
         val emailPattern = "[a-zA-Z0-9._-]+@[a-z]+\\.+[a-z]+"
         return Pattern.compile(emailPattern).matcher(email).matches()
@@ -166,5 +183,14 @@ class ResetPasswordFragment : Fragment() {
     private fun setError(inputLayout: TextInputLayout, message: String) {
         inputLayout.error = message
         inputLayout.setErrorTextColor(ContextCompat.getColorStateList(requireContext(), R.color.error_color))
+    }
+
+    private fun isNetworkAvailable(): Boolean {
+        val connectivityManager =
+            requireContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
 }
